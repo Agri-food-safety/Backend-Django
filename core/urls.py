@@ -5,7 +5,7 @@ from .views import (
     ReportViewSet, AlertViewSet, UserRegistrationView,
     UserLoginView, UserProfileView, PlantDetectionView,
     DiseaseDetectionView, PestDetectionView, DroughtDetectionView,
-    ReportStatusUpdateView
+    ReportStatusUpdateView, PestTypeViewSet
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -13,6 +13,7 @@ router = DefaultRouter()
 router.register(r'users', UserViewSet)
 router.register(r'plant-types', PlantTypeViewSet)
 router.register(r'disease-types', DiseaseTypeViewSet)
+router.register(r'pest-types', PestTypeViewSet)
 router.register(r'reports', ReportViewSet)
 router.register(r'alerts', AlertViewSet)
 

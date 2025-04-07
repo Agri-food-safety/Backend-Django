@@ -65,6 +65,21 @@ class DiseaseType(models.Model):
     def __str__(self):
         return self.name
 
+class PestType(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    treatment = models.TextField()
+    plant_types = models.JSONField(default=list)
+    severity = models.CharField(max_length=10, choices=[
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High')
+    ])
+
+    def __str__(self):
+        return self.name
+
 class Report(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reports')

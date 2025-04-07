@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import User, PlantType, DiseaseType, Report, Alert
+from .models import User, PlantType, DiseaseType, Report, Alert, PestType
 
 User = get_user_model()
 
@@ -60,8 +60,12 @@ class PlantTypeSerializer(serializers.ModelSerializer):
 class DiseaseTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = DiseaseType
-        fields = ['id', 'name', 'description', 'treatment', 
-                 'plant_types', 'severity']
+        fields = ['id', 'name', 'description', 'treatment', 'plant_types', 'severity']
+
+class PestTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PestType
+        fields = ['id', 'name', 'description', 'treatment', 'plant_types', 'severity']
 
 class ReportSerializer(serializers.ModelSerializer):
     class Meta:

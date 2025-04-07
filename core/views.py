@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from datetime import datetime
-from .models import User, PlantType, DiseaseType, Report, Alert
+from .models import User, PlantType, DiseaseType, Report, Alert, PestType
 from .serializers import (
     UserSerializer, PlantTypeSerializer, DiseaseTypeSerializer,
     ReportSerializer, AlertSerializer, UserRegistrationSerializer,
@@ -15,11 +15,13 @@ from .serializers import (
     DiseaseDetectionRequestSerializer, DiseaseDetectionResponseSerializer,
     PestDetectionRequestSerializer, PestDetectionResponseSerializer,
     DroughtDetectionRequestSerializer, DroughtDetectionResponseSerializer,
-    ReportCreateSerializer, ReportStatusUpdateSerializer, ReportListSerializer
+    ReportCreateSerializer, ReportStatusUpdateSerializer, ReportListSerializer,
+    PestTypeSerializer
 )
 import uuid
 import random
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.decorators import action
 
 
 class UserRegistrationView(APIView):
@@ -165,6 +167,26 @@ class PlantTypeViewSet(viewsets.ModelViewSet):
 class DiseaseTypeViewSet(viewsets.ModelViewSet):
     queryset = DiseaseType.objects.all()
     serializer_class = DiseaseTypeSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['severity']
+    search_fields = ['name', 'description']
+
+class PestTypeViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for managing pest types.
+    
+    Supports the following operations:
+    - GET /api/pest-types/: List all pest types
+    - POST /api/pest-types/: Create a new pest type
+    - GET /api/pest-types/{id}/: Retrieve a specific pest type
+    - PUT /api/pest-types/{id}/: Update a specific pest type
+    - DELETE /api/pest-types/{id}/: Delete a specific pest type
+    """
+    queryset = PestType.objects.all()
+    serializer_class = PestTypeSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['severity']
+    search_fields = ['name', 'description']
 
 class ReportViewSet(viewsets.ModelViewSet):
     """
@@ -176,6 +198,7 @@ class ReportViewSet(viewsets.ModelViewSet):
     - GET /api/reports/{id}/: Retrieve a specific report
     - PUT /api/reports/{id}/: Update a specific report
     - DELETE /api/reports/{id}/: Delete a specific report
+    - GET /api/reports/user/{user_id}/: Get reports for a specific user
     
     Report fields:
     - gpsLat: GPS latitude
@@ -253,6 +276,68 @@ class ReportViewSet(viewsets.ModelViewSet):
             'success': True,
             'data': serializer.data
         })
+        
+    @action(detail=False, methods=['get'], url_path='user/(?P<user_id>[^/.]+)')
+    def user_reports(self, request, user_id=None):
+        """
+        Get reports for a specific user.
+        
+        Permission rules:
+        - Farmers can only view their own reports
+        - Experts can view any user's reports
+        """
+        try:
+            # Check if the requested user exists
+            target_user = User.objects.get(id=user_id)
+            
+            # Get the current user
+            current_user = request.user
+            
+            # Check permissions
+            if current_user.role == 'farmer' and str(current_user.id) != user_id:
+                return Response({
+                    'success': False,
+                    'message': 'You can only view your own reports'
+                }, status=status.HTTP_403_FORBIDDEN)
+                
+            # Get reports for the target user
+            reports = Report.objects.filter(user=target_user)
+            
+            # Apply date filters if provided
+            start_date = request.query_params.get('startDate')
+            end_date = request.query_params.get('endDate')
+            
+            if start_date:
+                try:
+                    start_date = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                    reports = reports.filter(timestamp__gte=start_date)
+                except ValueError:
+                    pass
+                    
+            if end_date:
+                try:
+                    end_date = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                    reports = reports.filter(timestamp__lte=end_date)
+                except ValueError:
+                    pass
+            
+            # Serialize the reports
+            serializer = ReportListSerializer(reports, many=True)
+            
+            return Response({
+                'success': True,
+                'data': {
+                    'userId': user_id,
+                    'userName': target_user.full_name,
+                    'reports': serializer.data
+                }
+            })
+            
+        except User.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'User not found'
+            }, status=status.HTTP_404_NOT_FOUND)
 
 class ReportStatusUpdateView(APIView):
     permission_classes = [IsAuthenticated]
