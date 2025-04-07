@@ -68,15 +68,20 @@ class DiseaseType(models.Model):
 class Report(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reports')
-    plant_type = models.ForeignKey(PlantType, on_delete=models.CASCADE)
+    plant_type = models.ForeignKey(PlantType, on_delete=models.CASCADE, null=True, blank=True)
     image_url = models.URLField()
     timestamp = models.DateTimeField(auto_now_add=True)
     gps_lat = models.FloatField()
     gps_lng = models.FloatField()
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=100)
-    detection_result = models.CharField(max_length=255)
-    confidence_score = models.FloatField()
+    
+    # Detection results
+    plant_detection = models.JSONField(null=True, blank=True)
+    disease_detection = models.JSONField(null=True, blank=True)
+    pest_detection = models.JSONField(null=True, blank=True)
+    drought_detection = models.JSONField(null=True, blank=True)
+    
     status = models.CharField(max_length=20, choices=[
         ('submitted', 'Submitted'),
         ('reviewed', 'Reviewed')

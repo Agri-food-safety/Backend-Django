@@ -66,10 +66,12 @@ class DiseaseTypeSerializer(serializers.ModelSerializer):
 class ReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = Report
-        fields = ['id', 'user', 'plant_type', 'image_url', 'timestamp',
-                 'gps_lat', 'gps_lng', 'city', 'state', 'detection_result',
-                 'confidence_score', 'status', 'notes', 'reviewed_by',
-                 'reviewed_at']
+        fields = [
+            'id', 'user', 'plant_type', 'image_url', 'timestamp',
+            'gps_lat', 'gps_lng', 'city', 'state',
+            'plant_detection', 'disease_detection', 'pest_detection', 'drought_detection',
+            'status', 'notes', 'reviewed_by', 'reviewed_at'
+        ]
         read_only_fields = ['timestamp', 'reviewed_at']
 
 class AlertSerializer(serializers.ModelSerializer):
@@ -146,4 +148,70 @@ class DroughtDetectionRequestSerializer(serializers.Serializer):
 class DroughtDetectionResponseSerializer(serializers.Serializer):
     success = serializers.BooleanField()
     data = serializers.JSONField()
-    message = serializers.CharField(required=False) 
+    message = serializers.CharField(required=False)
+
+class ReportCreateSerializer(serializers.ModelSerializer):
+    gpsLat = serializers.FloatField(source='gps_lat')
+    gpsLng = serializers.FloatField(source='gps_lng')
+    imageUrl = serializers.URLField(source='image_url')
+    plantType = serializers.JSONField(source='plant_detection')
+    disease = serializers.JSONField(source='disease_detection')
+    pest = serializers.JSONField(source='pest_detection')
+    drought = serializers.JSONField(source='drought_detection')
+
+    class Meta:
+        model = Report
+        fields = [
+            'gpsLat', 'gpsLng', 'city', 'state', 'notes',
+            'imageUrl', 'plantType', 'disease', 'pest', 'drought'
+        ]
+
+    def create(self, validated_data):
+        # Extract detection data
+        plant_detection = validated_data.pop('plant_detection', None)
+        disease_detection = validated_data.pop('disease_detection', None)
+        pest_detection = validated_data.pop('pest_detection', None)
+        drought_detection = validated_data.pop('drought_detection', None)
+
+        # Create report
+        report = Report.objects.create(
+            user=self.context['request'].user,
+            plant_detection=plant_detection,
+            disease_detection=disease_detection,
+            pest_detection=pest_detection,
+            drought_detection=drought_detection,
+            **validated_data
+        )
+
+        # Set plant_type if plant detection was successful
+        if plant_detection and plant_detection.get('plantId'):
+            try:
+                plant_type = PlantType.objects.get(id=plant_detection['plantId'])
+                report.plant_type = plant_type
+                report.save()
+            except PlantType.DoesNotExist:
+                pass
+
+        return report
+
+class ReportStatusUpdateSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=['submitted', 'reviewed'])
+    reviewNotes = serializers.CharField(source='notes', required=False)
+
+class ReportListSerializer(serializers.ModelSerializer):
+    reportId = serializers.UUIDField(source='id')
+    gpsLat = serializers.FloatField(source='gps_lat')
+    gpsLng = serializers.FloatField(source='gps_lng')
+    imageUrl = serializers.URLField(source='image_url')
+    reviewedBy = serializers.UUIDField(source='reviewed_by.id', allow_null=True)
+    reviewedAt = serializers.DateTimeField(source='reviewed_at', allow_null=True)
+    reviewNotes = serializers.CharField(source='notes', allow_null=True)
+
+    class Meta:
+        model = Report
+        fields = [
+            'reportId', 'status', 'gpsLat', 'gpsLng', 'city', 'state',
+            'imageUrl', 'plant_detection', 'disease_detection',
+            'pest_detection', 'drought_detection', 'reviewedBy',
+            'reviewedAt', 'reviewNotes', 'timestamp'
+        ] 

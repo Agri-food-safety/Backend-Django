@@ -1,8 +1,11 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, filters
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from django_filters.rest_framework import DjangoFilterBackend
+from django.utils import timezone
+from datetime import datetime
 from .models import User, PlantType, DiseaseType, Report, Alert
 from .serializers import (
     UserSerializer, PlantTypeSerializer, DiseaseTypeSerializer,
@@ -11,60 +14,109 @@ from .serializers import (
     PlantDetectionRequestSerializer, PlantDetectionResponseSerializer,
     DiseaseDetectionRequestSerializer, DiseaseDetectionResponseSerializer,
     PestDetectionRequestSerializer, PestDetectionResponseSerializer,
-    DroughtDetectionRequestSerializer, DroughtDetectionResponseSerializer
+    DroughtDetectionRequestSerializer, DroughtDetectionResponseSerializer,
+    ReportCreateSerializer, ReportStatusUpdateSerializer, ReportListSerializer
 )
 import uuid
 import random
+from rest_framework_simplejwt.tokens import RefreshToken
 
 class UserRegistrationView(APIView):
+    permission_classes = [AllowAny]
+    
     def post(self, request):
-        serializer = UserRegistrationSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.save()
+        phone = request.data.get('phone')
+        password = request.data.get('password')
+        full_name = request.data.get('fullName')
+        role = request.data.get('role')
+        city = request.data.get('city')
+        state = request.data.get('state')
+        gps_lat = request.data.get('gpsLat')
+        gps_lng = request.data.get('gpsLng')
+        
+        if not all([phone, password, full_name, role]):
+            return Response({
+                'success': False,
+                'message': 'Missing required fields'
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+        if User.objects.filter(phone=phone).exists():
+            return Response({
+                'success': False,
+                'message': 'Phone number already registered'
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            user = User.objects.create(
+                id=uuid.uuid4(),
+                phone=phone,
+                full_name=full_name,
+                role=role,
+                city=city,
+                state=state,
+                gps_lat=gps_lat,
+                gps_lng=gps_lng
+            )
+            user.set_password(password)
+            user.save()
+            
+            # Generate JWT tokens
+            refresh = RefreshToken.for_user(user)
+            
             return Response({
                 'success': True,
                 'message': 'User registered successfully',
                 'data': {
                     'userId': str(user.id),
-                    'phone': user.phone,
                     'fullName': user.full_name,
-                    'role': user.role
+                    'role': user.role,
+                    'access_token': str(refresh.access_token),
+                    'refresh_token': str(refresh)
                 }
             }, status=status.HTTP_201_CREATED)
-        return Response({
-            'success': False,
-            'message': 'Registration failed',
-            'errors': serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class UserLoginView(APIView):
+    permission_classes = [AllowAny]
+    
     def post(self, request):
         phone = request.data.get('phone')
         password = request.data.get('password')
-
+        
         if not phone or not password:
             return Response({
                 'success': False,
                 'message': 'Phone and password are required'
             }, status=status.HTTP_400_BAD_REQUEST)
-
+            
         try:
             user = User.objects.get(phone=phone)
-            if user.check_password(password):
-                return Response({
-                    'success': True,
-                    'data': {
-                        'userId': str(user.id),
-                        'phone': user.phone,
-                        'fullName': user.full_name,
-                        'role': user.role
-                    }
-                })
-            else:
+            if not user.check_password(password):
                 return Response({
                     'success': False,
-                    'message': 'Invalid password'
+                    'message': 'Invalid credentials'
                 }, status=status.HTTP_401_UNAUTHORIZED)
+                
+            # Generate JWT tokens
+            refresh = RefreshToken.for_user(user)
+            
+            return Response({
+                'success': True,
+                'message': 'Login successful',
+                'data': {
+                    'userId': str(user.id),
+                    'fullName': user.full_name,
+                    'role': user.role,
+                    'access_token': str(refresh.access_token),
+                    'refresh_token': str(refresh)
+                }
+            }, status=status.HTTP_200_OK)
+            
         except User.DoesNotExist:
             return Response({
                 'success': False,
@@ -85,7 +137,107 @@ class DiseaseTypeViewSet(viewsets.ModelViewSet):
 
 class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all()
-    serializer_class = ReportSerializer
+    serializer_class = ReportListSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = [
+        'status', 'state', 'city',
+        'plant_detection__plantId', 'disease_detection__diseaseId',
+        'pest_detection__pestId', 'drought_detection__droughtLevel'
+    ]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Filter by date range if provided
+        start_date = self.request.query_params.get('startDate')
+        end_date = self.request.query_params.get('endDate')
+        
+        if start_date:
+            try:
+                start_date = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                queryset = queryset.filter(timestamp__gte=start_date)
+            except ValueError:
+                pass
+                
+        if end_date:
+            try:
+                end_date = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                queryset = queryset.filter(timestamp__lte=end_date)
+            except ValueError:
+                pass
+                
+        return queryset
+
+    def create(self, request, *args, **kwargs):
+        serializer = ReportCreateSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            report = serializer.save()
+            return Response({
+                'success': True,
+                'message': 'Report submitted successfully',
+                'data': ReportListSerializer(report).data
+            }, status=status.HTTP_201_CREATED)
+        return Response({
+            'success': False,
+            'message': 'Failed to submit report',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'success': True,
+            'data': {
+                'reports': serializer.data
+            }
+        })
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response({
+            'success': True,
+            'data': serializer.data
+        })
+
+class ReportStatusUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, report_id):
+        try:
+            report = Report.objects.get(id=report_id)
+        except Report.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'Report not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ReportStatusUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({
+                'success': False,
+                'message': 'Invalid request data',
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        report.status = serializer.validated_data['status']
+        report.notes = serializer.validated_data.get('notes', '')
+        report.reviewed_by = request.user
+        report.reviewed_at = timezone.now()
+        report.save()
+
+        return Response({
+            'success': True,
+            'message': 'Report status updated successfully',
+            'data': {
+                'reportId': str(report.id),
+                'status': report.status,
+                'reviewedBy': str(report.reviewed_by.id),
+                'reviewedAt': report.reviewed_at,
+                'reviewNotes': report.notes
+            }
+        })
 
 class AlertViewSet(viewsets.ModelViewSet):
     queryset = Alert.objects.all()
