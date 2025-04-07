@@ -21,7 +21,26 @@ import uuid
 import random
 from rest_framework_simplejwt.tokens import RefreshToken
 
+
 class UserRegistrationView(APIView):
+    """
+    Register a new user.
+    
+    Accepts POST request with the following fields:
+    - phone: User's phone number
+    - password: User's password
+    - fullName: User's full name
+    - role: User's role (farmer/expert)
+    - city: User's city (optional)
+    - state: User's state (optional)
+    - gpsLat: User's latitude (optional)
+    - gpsLng: User's longitude (optional)
+    
+    Returns:
+    - success: Boolean indicating if registration was successful
+    - message: Description of the result
+    - data: User information and tokens if successful
+    """
     permission_classes = [AllowAny]
     
     def post(self, request):
@@ -82,6 +101,18 @@ class UserRegistrationView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class UserLoginView(APIView):
+    """
+    Authenticate a user and return JWT tokens.
+    
+    Accepts POST request with the following fields:
+    - phone: User's phone number
+    - password: User's password
+    
+    Returns:
+    - success: Boolean indicating if login was successful
+    - message: Description of the result
+    - data: User information and tokens if successful
+    """
     permission_classes = [AllowAny]
     
     def post(self, request):
@@ -136,6 +167,28 @@ class DiseaseTypeViewSet(viewsets.ModelViewSet):
     serializer_class = DiseaseTypeSerializer
 
 class ReportViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for managing reports.
+    
+    Supports the following operations:
+    - GET /api/reports/: List all reports
+    - POST /api/reports/: Create a new report
+    - GET /api/reports/{id}/: Retrieve a specific report
+    - PUT /api/reports/{id}/: Update a specific report
+    - DELETE /api/reports/{id}/: Delete a specific report
+    
+    Report fields:
+    - gpsLat: GPS latitude
+    - gpsLng: GPS longitude
+    - city: City name
+    - state: State name
+    - imageUrl: URL of the plant image
+    - plantType: Plant type information
+    - disease: Disease information
+    - pest: Pest information
+    - drought: Drought information
+    - notes: Additional notes
+    """
     queryset = Report.objects.all()
     serializer_class = ReportListSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
@@ -288,6 +341,19 @@ class UserProfileView(APIView):
             }, status=status.HTTP_404_NOT_FOUND)
 
 class PlantDetectionView(APIView):
+    """
+    Detect plant type from an image.
+    
+    Accepts POST request with:
+    - imageUrl: URL of the plant image
+    
+    Returns:
+    - success: Boolean indicating if detection was successful
+    - data: Plant detection results including:
+        - plantId: Unique identifier for the plant
+        - name: Plant name
+        - confidence: Detection confidence score
+    """
     def post(self, request):
         # Validate request
         request_serializer = PlantDetectionRequestSerializer(data=request.data)
@@ -321,6 +387,19 @@ class PlantDetectionView(APIView):
         })
 
 class DiseaseDetectionView(APIView):
+    """
+    Detect plant diseases from an image.
+    
+    Accepts POST request with:
+    - imageUrl: URL of the plant image
+    
+    Returns:
+    - success: Boolean indicating if detection was successful
+    - data: Disease detection results including:
+        - diseaseId: Unique identifier for the disease
+        - name: Disease name
+        - confidence: Detection confidence score
+    """
     def post(self, request):
         serializer = DiseaseDetectionRequestSerializer(data=request.data)
         if not serializer.is_valid():
@@ -384,6 +463,19 @@ class DiseaseDetectionView(APIView):
         })
 
 class PestDetectionView(APIView):
+    """
+    Detect plant pests from an image.
+    
+    Accepts POST request with:
+    - imageUrl: URL of the plant image
+    
+    Returns:
+    - success: Boolean indicating if detection was successful
+    - data: Pest detection results including:
+        - pestId: Unique identifier for the pest
+        - name: Pest name
+        - confidence: Detection confidence score
+    """
     def post(self, request):
         serializer = PestDetectionRequestSerializer(data=request.data)
         if not serializer.is_valid():
@@ -443,6 +535,19 @@ class PestDetectionView(APIView):
         })
 
 class DroughtDetectionView(APIView):
+    """
+    Detect drought conditions from an image.
+    
+    Accepts POST request with:
+    - imageUrl: URL of the plant/field image
+    
+    Returns:
+    - success: Boolean indicating if detection was successful
+    - data: Drought detection results including:
+        - droughtLevel: Level of drought (0-5)
+        - description: Description of drought conditions
+        - confidence: Detection confidence score
+    """
     def post(self, request):
         serializer = DroughtDetectionRequestSerializer(data=request.data)
         if not serializer.is_valid():
