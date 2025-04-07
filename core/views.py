@@ -215,11 +215,7 @@ class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all()
     serializer_class = ReportListSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = [
-        'status', 'state', 'city',
-        'plant_detection__plantId', 'disease_detection__diseaseId',
-        'pest_detection__pestId', 'drought_detection__droughtLevel'
-    ]
+    filterset_fields = ['status', 'state', 'city']
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -241,6 +237,21 @@ class ReportViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(timestamp__lte=end_date)
             except ValueError:
                 pass
+
+        # Custom JSON field filtering
+        plant_id = self.request.query_params.get('plantId')
+        disease_id = self.request.query_params.get('diseaseId')
+        pest_id = self.request.query_params.get('pestId')
+        drought_level = self.request.query_params.get('droughtLevel')
+
+        if plant_id:
+            queryset = queryset.filter(plant_detection__plantId=plant_id)
+        if disease_id:
+            queryset = queryset.filter(disease_detection__diseaseId=disease_id)
+        if pest_id:
+            queryset = queryset.filter(pest_detection__pestId=pest_id)
+        if drought_level:
+            queryset = queryset.filter(drought_detection__droughtLevel=drought_level)
                 
         return queryset
 
@@ -660,4 +671,4 @@ class DroughtDetectionView(APIView):
                 'confidence': confidence,
                 'imageUrl': serializer.validated_data['image_url']
             }
-        }) 
+        })
