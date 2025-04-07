@@ -297,20 +297,15 @@ class AlertViewSet(viewsets.ModelViewSet):
     serializer_class = AlertSerializer
 
 class UserProfileView(APIView):
-    def get(self, request, user_id):
-        try:
-            user = User.objects.get(id=user_id)
-            serializer = UserProfileSerializer(user)
-            return Response({
-                'success': True,
-                'data': serializer.data
-            })
-        except User.DoesNotExist:
-            return Response({
-                'success': False,
-                'message': 'User not found'
-            }, status=status.HTTP_404_NOT_FOUND)
-
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        user = request.user
+        serializer = UserProfileSerializer(user)
+        return Response({
+            'success': True,
+            'data': serializer.data
+        })
     def put(self, request, user_id):
         try:
             user = User.objects.get(id=user_id)
