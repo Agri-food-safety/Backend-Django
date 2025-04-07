@@ -33,16 +33,37 @@ class UserRegistrationView(APIView):
 
 class UserLoginView(APIView):
     def post(self, request):
-        # For now, return a dummy response since we don't have authentication
-        return Response({
-            'success': True,
-            'data': {
-                'userId': '550e8400-e29b-41d4-a716-446655440000',
-                'phone': request.data.get('phone', '213555123456'),
-                'fullName': 'Ahmed Benali',
-                'role': 'farmer'
-            }
-        })
+        phone = request.data.get('phone')
+        password = request.data.get('password')
+
+        if not phone or not password:
+            return Response({
+                'success': False,
+                'message': 'Phone and password are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(phone=phone)
+            if user.check_password(password):
+                return Response({
+                    'success': True,
+                    'data': {
+                        'userId': str(user.id),
+                        'phone': user.phone,
+                        'fullName': user.full_name,
+                        'role': user.role
+                    }
+                })
+            else:
+                return Response({
+                    'success': False,
+                    'message': 'Invalid password'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+        except User.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'User not found'
+            }, status=status.HTTP_404_NOT_FOUND)
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
