@@ -143,8 +143,15 @@ class UserLoginView(APIView):
                 'message': 'Login successful',
                 'data': {
                     'userId': str(user.id),
+                    'phone': user.phone,
                     'fullName': user.full_name,
                     'role': user.role,
+                    'city': user.city,
+                    'state': user.state,
+                    'gpsLat': user.gps_lat,
+                    'gpsLng': user.gps_lng,
+                    'createdAt': user.created_at,
+                    'lastActive': user.last_active,
                     'access_token': str(refresh.access_token),
                     'refresh_token': str(refresh)
                 }
