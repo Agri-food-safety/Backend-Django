@@ -114,4 +114,36 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
             instance.gps_lng = validated_data['gps_lng']
         
         instance.save()
-        return instance 
+        return instance
+
+class PlantDetectionRequestSerializer(serializers.Serializer):
+    image_url = serializers.URLField()
+
+class PlantDetectionResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    data = serializers.JSONField()
+    message = serializers.CharField(required=False)
+
+class DiseaseDetectionRequestSerializer(serializers.Serializer):
+    image_url = serializers.URLField()
+
+class DiseaseDetectionResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    data = serializers.JSONField()
+    message = serializers.CharField(required=False)
+
+class PestDetectionRequestSerializer(serializers.Serializer):
+    image_url = serializers.URLField()
+
+class PestDetectionResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    data = serializers.JSONField()
+    message = serializers.CharField(required=False)
+
+class DroughtDetectionRequestSerializer(serializers.Serializer):
+    image_url = serializers.URLField()
+
+class DroughtDetectionResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    data = serializers.JSONField()
+    message = serializers.CharField(required=False) 
