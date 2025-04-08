@@ -428,49 +428,47 @@ class UserProfileView(APIView):
             }, status=status.HTTP_404_NOT_FOUND)
 
 class PlantDetectionView(APIView):
-    """
-    Detect plant type from an image.
+    permission_classes = [AllowAny]
     
-    Accepts POST request with:
-    - imageUrl: URL of the plant image
-    
-    Returns:
-    - success: Boolean indicating if detection was successful
-    - data: Plant detection results including:
-        - plantId: Unique identifier for the plant
-        - name: Plant name
-        - confidence: Detection confidence score
-    """
     def post(self, request):
-        # Validate request
-        request_serializer = PlantDetectionRequestSerializer(data=request.data)
-        if not request_serializer.is_valid():
+        serializer = PlantDetectionRequestSerializer(data=request.data)
+        if not serializer.is_valid():
             return Response({
                 'success': False,
                 'message': 'Invalid request data',
-                'errors': request_serializer.errors
+                'errors': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
-
-        # Dummy detection logic - will be replaced with AI model later
-        # For now, we'll just return a random plant type ID
-        dummy_plant_types = [
-            '550e8400-e29b-41d4-a716-446655440000',  # Tomato
-            '550e8400-e29b-41d4-a716-446655440001',  # Potato
-            '550e8400-e29b-41d4-a716-446655440002',  # Wheat
-            '550e8400-e29b-41d4-a716-446655440003',  # Corn
-        ]
+            
+        # For now, return dummy data
+        # In the future, this will be replaced with actual AI model prediction
+        plant_id = "550e8400-e29b-41d4-a716-446655440000"
+        confidence = random.uniform(0.8, 1.0)
         
-        # Simulate detection with 90% confidence
-        detected_plant_id = random.choice(dummy_plant_types)
-        confidence = random.uniform(0.9, 1.0)
-
+        # Get plant information from database
+        try:
+            plant = PlantType.objects.get(id=plant_id)
+            plant_data = {
+                'plantId': str(plant.id),
+                'name': plant.name,
+                'scientificName': plant.scientific_name,
+                'commonDiseases': plant.common_diseases,
+                'confidence': confidence,
+                'imageUrl': serializer.validated_data['image_url']
+            }
+        except PlantType.DoesNotExist:
+            # If plant not found in database, return basic info
+            plant_data = {
+                'plantId': plant_id,
+                'name': 'Unknown Plant',
+                'scientificName': 'Unknown',
+                'commonDiseases': [],
+                'confidence': confidence,
+                'imageUrl': serializer.validated_data['image_url']
+            }
+        
         return Response({
             'success': True,
-            'data': {
-                'plantId': detected_plant_id,
-                'confidence': round(confidence, 2),
-                'imageUrl': request_serializer.validated_data['image_url']
-            }
+            'data': plant_data
         })
 
 class DiseaseDetectionView(APIView):
