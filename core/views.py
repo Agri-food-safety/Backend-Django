@@ -22,6 +22,7 @@ import uuid
 import random
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.decorators import action
+from .detection import detect_plant, detect_disease
 
 
 class UserRegistrationView(APIView):
@@ -439,37 +440,19 @@ class PlantDetectionView(APIView):
                 'errors': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
             
-        # For now, return dummy data
-        # In the future, this will be replaced with actual AI model prediction
-        plant_id = "550e8400-e29b-41d4-a716-446655440000"
-        confidence = random.uniform(0.8, 1.0)
+        # Use the YOLO model for plant detection
+        result = detect_plant(serializer.validated_data['image_url'])
         
-        # Get plant information from database
-        try:
-            plant = PlantType.objects.get(id=plant_id)
-            plant_data = {
-                'plantId': str(plant.id),
-                'name': plant.name,
-                'scientificName': plant.scientific_name,
-                'commonDiseases': plant.common_diseases,
-                'confidence': confidence,
-                'imageUrl': serializer.validated_data['image_url']
-            }
-        except PlantType.DoesNotExist:
-            # If plant not found in database, return basic info
-            plant_data = {
-                'plantId': plant_id,
-                'name': 'Unknown Plant',
-                'scientificName': 'Unknown',
-                'commonDiseases': [],
-                'confidence': confidence,
-                'imageUrl': serializer.validated_data['image_url']
-            }
-        
-        return Response({
-            'success': True,
-            'data': plant_data
-        })
+        if result['success']:
+            return Response({
+                'success': True,
+                'data': result
+            })
+        else:
+            return Response({
+                'success': False,
+                'message': result['message']
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 class DiseaseDetectionView(APIView):
     """
@@ -483,6 +466,8 @@ class DiseaseDetectionView(APIView):
     - data: Disease detection results including:
         - diseaseId: Unique identifier for the disease
         - name: Disease name
+        - description: Disease description
+        - treatment: Treatment recommendations
         - confidence: Detection confidence score
     """
     def post(self, request):
@@ -494,58 +479,28 @@ class DiseaseDetectionView(APIView):
                 'errors': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Dummy disease detection logic
-        dummy_diseases = [
-            {
-                'id': '550e8400-e29b-41d4-a716-446655440010',
-                'name': 'Early Blight',
-                'description': 'A fungal disease that affects tomatoes and potatoes, causing dark spots on leaves and stems.',
-                'treatment': 'Remove infected leaves, apply fungicides, and practice crop rotation.',
-                'plant_types': ['550e8400-e29b-41d4-a716-446655440000', '550e8400-e29b-41d4-a716-446655440001'],
-                'severity': 'medium'
-            },
-            {
-                'id': '550e8400-e29b-41d4-a716-446655440011',
-                'name': 'Late Blight',
-                'description': 'A devastating disease that can destroy entire tomato and potato crops.',
-                'treatment': 'Apply fungicides preventatively, remove infected plants, and ensure good air circulation.',
-                'plant_types': ['550e8400-e29b-41d4-a716-446655440000', '550e8400-e29b-41d4-a716-446655440001'],
-                'severity': 'high'
-            },
-            {
-                'id': '550e8400-e29b-41d4-a716-446655440012',
-                'name': 'Rust',
-                'description': 'A fungal disease that creates orange or brown spots on wheat leaves.',
-                'treatment': 'Use resistant varieties, apply fungicides, and practice crop rotation.',
-                'plant_types': ['550e8400-e29b-41d4-a716-446655440002'],
-                'severity': 'medium'
-            },
-            {
-                'id': '550e8400-e29b-41d4-a716-446655440013',
-                'name': 'Gray Leaf Spot',
-                'description': 'A fungal disease that affects corn, causing gray lesions on leaves.',
-                'treatment': 'Use resistant hybrids, apply fungicides, and practice crop rotation.',
-                'plant_types': ['550e8400-e29b-41d4-a716-446655440003'],
-                'severity': 'medium'
-            }
-        ]
         
-        # Simulate detection with random confidence
-        detected_disease = random.choice(dummy_diseases)
-        confidence = round(random.uniform(0.8, 1.0), 2)
-
-        return Response({
-            'success': True,
-            'data': {
-                'diseaseId': detected_disease['id'],
-                'name': detected_disease['name'],
-                'description': detected_disease['description'],
-                'treatment': detected_disease['treatment'],
-                'severity': detected_disease['severity'],
-                'confidence': confidence,
-                'imageUrl': serializer.validated_data['image_url']
-            }
-        })
+        # Use the detect_disease function
+        result = detect_disease(serializer.validated_data['image_url'])
+        
+        if result['success']:
+            return Response({
+                'success': True,
+                'data': {
+                    'diseaseId': result['diseaseId'],
+                    'name': result['name'],
+                    'description': result['description'],
+                    'treatment': result['treatment'],
+                    'confidence': result['confidence'],
+                    'imageUrl': result['imageUrl']
+                }
+            })
+        else:
+            return Response({
+                'success': False,
+                'message': result['message'],
+                'imageUrl': result['imageUrl']
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 class PestDetectionView(APIView):
     """
