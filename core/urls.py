@@ -27,5 +27,9 @@ urlpatterns = [
     path('detect/pest/', PestDetectionView.as_view(), name='pest-detection'),
     path('detect/drought/', DroughtDetectionView.as_view(), name='drought-detection'),
     path('reports/<uuid:report_id>/status/', ReportStatusUpdateView.as_view(), name='report-status-update'),
+    
+    # Alert specific routes
+    path('alerts/by-region/', AlertViewSet.as_view({'get': 'by_region'}), name='alerts-by-region'),
+    
     path('', include(router.urls)),
 ]
