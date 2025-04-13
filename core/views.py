@@ -597,19 +597,23 @@ class PlantDetectionView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
             
         # Get a random plant type
-        plant_type = PlantType.objects.order_by('?').first()
+        plant_types = PlantType.objects.all()
+        plant_type = random.choice(list(plant_types))
         confidence = round(random.uniform(0.85, 0.99), 2)
         
-        return Response({
+        # Ensure proper encoding of Arabic text
+        response_data = {
             'success': True,
             'data': {
                 'plantId': str(plant_type.id),
-                'name': plant_type.name,
-                'scientificName': plant_type.scientific_name,
+                'name': plant_type.name.encode('utf-8').decode('utf-8'),
+                'scientificName': plant_type.scientific_name.encode('utf-8').decode('utf-8'),
                 'confidence': confidence,
                 'imageUrl': serializer.validated_data['image_url']
             }
-        })
+        }
+        
+        return Response(response_data, content_type='application/json; charset=utf-8')
 
 class DiseaseDetectionView(APIView):
     """
@@ -637,21 +641,25 @@ class DiseaseDetectionView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         # Get a random disease type
-        disease_type = DiseaseType.objects.order_by('?').first()
+        diseases = DiseaseType.objects.all()
+        disease_type = random.choice(list(diseases))
         confidence = round(random.uniform(0.85, 0.99), 2)
         
-        return Response({
+        # Ensure proper encoding of Arabic text
+        response_data = {
             'success': True,
             'data': {
                 'diseaseId': str(disease_type.id),
-                'name': disease_type.name,
-                'description': disease_type.description,
-                'treatment': disease_type.treatment,
+                'name': disease_type.name.encode('utf-8').decode('utf-8'),
+                'description': disease_type.description.encode('utf-8').decode('utf-8'),
+                'treatment': disease_type.treatment.encode('utf-8').decode('utf-8'),
                 'severity': disease_type.severity,
                 'confidence': confidence,
                 'imageUrl': serializer.validated_data['image_url']
             }
-        })
+        }
+        
+        return Response(response_data, content_type='application/json; charset=utf-8')
 
 class PestDetectionView(APIView):
     """
@@ -676,43 +684,23 @@ class PestDetectionView(APIView):
                 'errors': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Dummy pest detection logic
-        dummy_pests = [
-            {
-                'id': '550e8400-e29b-41d4-a716-446655440020',
-                'name': 'Aphids',
-                'description': 'Small, soft-bodied insects that feed on plant sap.',
-                'treatment': 'Use insecticidal soap, neem oil, or introduce natural predators like ladybugs.',
-                'severity': 'medium'
-            },
-            {
-                'id': '550e8400-e29b-41d4-a716-446655440021',
-                'name': 'Whiteflies',
-                'description': 'Tiny white insects that feed on plant sap and spread diseases.',
-                'treatment': 'Use yellow sticky traps, insecticidal soap, or neem oil.',
-                'severity': 'high'
-            },
-            {
-                'id': '550e8400-e29b-41d4-a716-446655440022',
-                'name': 'Spider Mites',
-                'description': 'Tiny arachnids that cause yellowing and webbing on leaves.',
-                'treatment': 'Increase humidity, use miticides, or introduce predatory mites.',
-                'severity': 'medium'
-            },
-            {
-                'id': '550e8400-e29b-41d4-a716-446655440023',
-                'name': 'Caterpillars',
-                'description': 'Larvae of butterflies and moths that feed on leaves.',
-                'treatment': 'Handpick, use Bacillus thuringiensis (Bt), or introduce natural predators.',
-                'severity': 'low'
-            }
-        ]
+        # Get all pests from database
+        pests = PestType.objects.all()
+        
+        # Convert to list of dictionaries with same structure as before
+        pest_list = [{
+            'id': str(pest.id),
+            'name': pest.name.encode('utf-8').decode('utf-8'),
+            'description': pest.description.encode('utf-8').decode('utf-8'),
+            'treatment': pest.treatment.encode('utf-8').decode('utf-8'),
+            'severity': pest.severity
+        } for pest in pests]
         
         # Simulate detection with random confidence
-        detected_pest = random.choice(dummy_pests)
+        detected_pest = random.choice(pest_list)
         confidence = round(random.uniform(0.8, 1.0), 2)
 
-        return Response({
+        response_data = {
             'success': True,
             'data': {
                 'pestId': detected_pest['id'],
@@ -723,7 +711,9 @@ class PestDetectionView(APIView):
                 'confidence': confidence,
                 'imageUrl': serializer.validated_data['image_url']
             }
-        })
+        }
+        
+        return Response(response_data, content_type='application/json; charset=utf-8')
 
 class DroughtDetectionView(APIView):
     """
@@ -753,22 +743,43 @@ class DroughtDetectionView(APIView):
         drought_level = random.randint(0, 5)
         confidence = round(random.uniform(0.8, 1.0), 2)
 
-        # Map drought levels to descriptions
+        # Map drought levels to descriptions in English and Arabic
         drought_descriptions = {
-            0: "No drought - Soil moisture is optimal",
-            1: "Mild drought - Slightly dry conditions",
-            2: "Moderate drought - Soil is dry, plants may show stress",
-            3: "Severe drought - Significant water stress",
-            4: "Extreme drought - Critical water shortage",
-            5: "Exceptional drought - Widespread water scarcity"
+            0: {
+                'en': "No drought - Soil moisture is optimal",
+                'ar': "لا يوجد جفاف - رطوبة التربة مثالية"
+            },
+            1: {
+                'en': "Mild drought - Slightly dry conditions",
+                'ar': "جفاف خفيف - ظروف جافة قليلاً"
+            },
+            2: {
+                'en': "Moderate drought - Soil is dry, plants may show stress",
+                'ar': "جفاف معتدل - التربة جافة، قد تظهر النباتات علامات الإجهاد"
+            },
+            3: {
+                'en': "Severe drought - Significant water stress",
+                'ar': "جفاف شديد - إجهاد مائي كبير"
+            },
+            4: {
+                'en': "Extreme drought - Critical water shortage",
+                'ar': "جفاف متطرف - نقص حاد في المياه"
+            },
+            5: {
+                'en': "Exceptional drought - Widespread water scarcity",
+                'ar': "جفاف استثنائي - ندرة المياه منتشرة"
+            }
         }
 
-        return Response({
+        response_data = {
             'success': True,
             'data': {
                 'droughtLevel': drought_level,
-                'description': drought_descriptions[drought_level],
+                'description':
+                    drought_descriptions[drought_level]['ar'],
                 'confidence': confidence,
                 'imageUrl': serializer.validated_data['image_url']
             }
-        }) 
+        }
+        
+        return Response(response_data, content_type='application/json; charset=utf-8') 
