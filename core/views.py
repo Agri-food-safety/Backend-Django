@@ -6,6 +6,8 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from datetime import datetime
+
+from core.utils import load_model, predict_image
 from .models import User, PlantType, DiseaseType, Report, Alert, PestType
 from .serializers import (
     UserSerializer, PlantTypeSerializer, DiseaseTypeSerializer,
@@ -223,11 +225,7 @@ class ReportViewSet(viewsets.ModelViewSet):
     queryset = Report.objects.all()
     serializer_class = ReportListSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = [
-        'status', 'state', 'city',
-        'plant_detection__plantId', 'disease_detection__diseaseId',
-        'pest_detection__pestId', 'drought_detection__droughtLevel'
-    ]
+    filterset_fields = ['status', 'state', 'city']  # Only include direct model fields
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -249,6 +247,25 @@ class ReportViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(timestamp__lte=end_date)
             except ValueError:
                 pass
+        
+        # Manual filtering for related fields
+        plant_id = self.request.query_params.get('plantId')
+        disease_id = self.request.query_params.get('diseaseId')
+        pest_id = self.request.query_params.get('pestId')
+        drought_level = self.request.query_params.get('droughtLevel')
+        
+        # Apply filters if they exist
+        if plant_id:
+            queryset = queryset.filter(plant_detection__plant_type__id=plant_id)
+            
+        if disease_id:
+            queryset = queryset.filter(disease_detection__disease_type__id=disease_id)
+            
+        if pest_id:
+            queryset = queryset.filter(pest_detection__pest_type__id=pest_id)
+            
+        if drought_level:
+            queryset = queryset.filter(drought_detection__drought_level=drought_level)
                 
         return queryset
 
@@ -631,6 +648,8 @@ class DiseaseDetectionView(APIView):
         - treatment: Treatment recommendations
         - confidence: Detection confidence score
     """
+
+    
     def post(self, request):
         serializer = DiseaseDetectionRequestSerializer(data=request.data)
         if not serializer.is_valid():
@@ -640,17 +659,36 @@ class DiseaseDetectionView(APIView):
                 'errors': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Get a random disease type
-        diseases = DiseaseType.objects.all()
-        disease_type = random.choice(list(diseases))
-        confidence = round(random.uniform(0.85, 0.99), 2)
+
+
+        import json
+        model_path = "models/plant_disease_model.pth"
+    
+    
+  
+        with open('mappings/disease_mapping.json', 'r') as f:
+            class_to_idx = json.load(f)
+    
+        idx_to_class = {v: k for k, v in class_to_idx.items()}
+        num_classes = len(class_to_idx)
+    
+        model = load_model(model_path, num_classes)
+
+        image_path = serializer.validated_data['image_url']
+        prediction, conf = predict_image(image_path, model, idx_to_class)
+    
+        print(f"Predicted class:\n\n\\n\n\n\n\n\\n {prediction}")
+
+        # print(DiseaseType.objects.all().all)
+        disease_type = DiseaseType.objects.get(tag=prediction)
+        confidence = conf * 100
         
         # Ensure proper encoding of Arabic text
         response_data = {
             'success': True,
             'data': {
                 'diseaseId': str(disease_type.id),
-                'name': disease_type.name.encode('utf-8').decode('utf-8'),
+                'name': disease_type.arabic_name.encode('utf-8').decode('utf-8'),
                 'description': disease_type.description.encode('utf-8').decode('utf-8'),
                 'treatment': disease_type.treatment.encode('utf-8').decode('utf-8'),
                 'severity': disease_type.severity,
@@ -782,4 +820,4 @@ class DroughtDetectionView(APIView):
             }
         }
         
-        return Response(response_data, content_type='application/json; charset=utf-8') 
+        return Response(response_data, content_type='application/json; charset=utf-8')

@@ -15,7 +15,7 @@ add_safe_globals([Sequential])
 
 # Load models
 plant_detection_model = YOLO('models/best.pt')
-drought_detection_model = YOLO('models/full_model.pt')
+# drought_detection_model = YOLO('models/full_model.pt')
 pest_detection_model = tf.keras.models.load_model('models/mobilenetv2_pest_detector.h5')
 
 # Set model parameters
@@ -25,10 +25,10 @@ plant_detection_model.overrides['agnostic_nms'] = False  # NMS class-agnostic
 plant_detection_model.overrides['max_det'] = 1000  # maximum number of detections per image
 
 # Set drought model parameters
-drought_detection_model.overrides['conf'] = 0.25
-drought_detection_model.overrides['iou'] = 0.45
-drought_detection_model.overrides['agnostic_nms'] = False
-drought_detection_model.overrides['max_det'] = 1000
+# drought_detection_model.overrides['conf'] = 0.25
+# drought_detection_model.overrides['iou'] = 0.45
+# drought_detection_model.overrides['agnostic_nms'] = False
+# drought_detection_model.overrides['max_det'] = 1000
 
 # Drought level descriptions in Arabic
 DROUGHT_DESCRIPTIONS = {

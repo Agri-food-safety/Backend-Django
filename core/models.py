@@ -53,6 +53,8 @@ class PlantType(models.Model):
 class DiseaseType(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100)
+    arabic_name = models.CharField(max_length=100, null=True, blank=True)
+    tag = models.CharField(max_length=100)
     description = models.TextField()
     treatment = models.TextField()
     plant_types = models.JSONField(default=list)

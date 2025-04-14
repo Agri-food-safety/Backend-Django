@@ -25,16 +25,23 @@ class Command(BaseCommand):
         disease_types = {dt.name.lower(): dt for dt in DiseaseType.objects.all()}
         pest_types = {pt.name.lower(): pt for pt in PestType.objects.all()}
 
-        # Generate random locations in India
+        # Generate random locations in Algeria
         def random_location():
-            # Rough bounding box for India
-            lat = random.uniform(8.4, 37.6)
-            lng = random.uniform(68.7, 97.4)
+            # Rough bounding box for Algeria
+            lat = random.uniform(18.0, 37.0)   # from Sahara to Mediterranean
+            lng = random.uniform(-8.7, 11.9)   # from western to eastern border
             return lat, lng
 
         # Generate random cities and states
-        cities = ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai', 'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow']
-        states = ['Maharashtra', 'Delhi', 'Karnataka', 'Telangana', 'Tamil Nadu', 'West Bengal', 'Gujarat', 'Rajasthan', 'Uttar Pradesh']
+        cities = [
+        'Algiers', 'Oran', 'Constantine', 'Annaba', 'Blida',
+        'Batna', 'Sétif', 'Tlemcen', 'Tizi Ouzou', 'Béjaïa'
+    ]
+
+        states = [
+            'Algiers', 'Oran', 'Constantine', 'Annaba', 'Blida',
+            'Batna', 'Sétif', 'Tlemcen', 'Tizi Ouzou', 'Béjaïa'
+        ]
 
         with open(csv_file, 'r') as file:
             reader = csv.DictReader(file)
@@ -103,4 +110,4 @@ class Command(BaseCommand):
 
             # Bulk create the reports
             Report.objects.bulk_create(reports_to_create)
-            self.stdout.write(self.style.SUCCESS(f'Successfully created {len(reports_to_create)} reports')) 
+            self.stdout.write(self.style.SUCCESS(f'Successfully created {len(reports_to_create)} reports'))
